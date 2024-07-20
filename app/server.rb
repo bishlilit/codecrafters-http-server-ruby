@@ -11,12 +11,17 @@ client_socket, client_address = server.accept
 puts
 puts "client connected"
 
-raw_request = client_socket.read
+raw_request = ""
+# raw_request = client_socket.read
 
-# raw_request = ""
 # while line = client_socket.gets # Read lines from socket
 #     raw_request += line
 # end
+# 
+
+while (line = client_socket.gets) != "\r\n"
+    raw_request += line
+end
 
 puts "raw request: " +  raw_request
 puts "end of raw request"

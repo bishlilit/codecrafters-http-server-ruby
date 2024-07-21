@@ -57,25 +57,26 @@ def get_request_target(raw_request)
     return request_target
 end
 
-def handle_request(request_method, request_target, request_headers, config)
+def handle_request(request_method, request_target, request_headers, request_body, config)
+    puts "request_method: " + request_method
     status = ""
     response_body = ""
     response_headers = {}
-    if request_target == "/" 
+    if request_method == "GET" && request_target == "/" 
         status = "HTTP/1.1 200 OK"
-    elsif request_target.start_with? "/echo"
+    elsif request_method == "GET" && request_target.start_with?("/echo")
         status = "HTTP/1.1 200 OK"
         content = request_target["/echo".length + 1..]
         puts "request target: " + request_target + ", content: " + content
         response_body = content
         response_headers["Content-Type"] = "text/plain"
-    elsif request_target.start_with? "/user-agent"
+    elsif request_method == "GET" && request_target.start_with?("/user-agent")
         status = "HTTP/1.1 200 OK"
         content = request_headers["User-Agent"]    
         puts "request target: " + request_target + ", content: " + content
         response_body = content
         response_headers["Content-Type"] = "text/plain"
-    elsif request_target.start_with? "/files"
+    elsif request_method == "GET" && request_target.start_with?("/files")
         status = "HTTP/1.1 200 OK"
         filename = request_target["/files/".length, request_target.length]
         begin
@@ -86,6 +87,15 @@ def handle_request(request_method, request_target, request_headers, config)
         rescue Errno::ENOENT
             status = "HTTP/1.1 404 Not Found"
         end
+    elsif request_method == "POST" && request_target.start_with?("/files")
+        status = "HTTP/1.1 201 Created"
+        filename = request_target["/files/".length, request_target.length]
+        puts "filename: " + filename
+        file_content = request_body
+
+        file = File.new(config["directory"] + filename, "w")
+        file.write file_content
+        file.close        
     else
         status = "HTTP/1.1 404 Not Found"
     end 
@@ -120,13 +130,24 @@ def handle_response(client_socket, status, response_headers, response_body)
     client_socket.write(status + end_of_status_line + response_headers_str + end_of_headers + response_body)
 end
 
+def get_request_body(client_socket, length)
+    while data = client_socket.read(length) do
+        return data
+    end
+end
+
 def handle_client_connection(client_socket, config) 
     raw_request = get_raw_request(client_socket)    
     request_headers = get_request_headers(raw_request)    
     request_method = get_request_method(raw_request)
     request_target = get_request_target(raw_request)
+    if request_headers["Content-Length"] != nil && Integer(request_headers["Content-Length"]) > 0
+        request_body = get_request_body(client_socket, Integer(request_headers["Content-Length"]))
+    else
+        request_body = nil
+    end
     
-    status, response_body, response_headers = handle_request(request_method, request_target, request_headers, config)    
+    status, response_body, response_headers = handle_request(request_method, request_target, request_headers, request_body, config)    
     
     handle_response(client_socket, status, response_headers, response_body)
 end

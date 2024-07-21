@@ -1,6 +1,6 @@
 require "socket"
 
-def handle_client_connection(client_socket, config) 
+def get_raw_request(client_socket) 
     raw_request = ""
     # raw_request = client_socket.read
     
@@ -15,14 +15,10 @@ def handle_client_connection(client_socket, config)
     
     puts "raw request: " +  raw_request
     puts "end of raw request"
-    
-    request_line = raw_request.split("\r\n")[0]
-    
-    puts "request line: " + request_line
-    puts "end of request line"
-    
-    request_method = request_line.split(" ")[0].strip
-    request_target = request_line.split(" ")[1] # url path
+    return raw_request
+end
+
+def get_request_headers(raw_request)
     request_headers = {}
     puts "gathering request headers..."
     puts "range: (" + "1" + " to " + (raw_request.split("\r\n").length() - 1).to_s + ")" 
@@ -38,7 +34,30 @@ def handle_client_connection(client_socket, config)
         puts header_index.to_s + ". key: " + key + ", value: " + value
     end
     puts "Finished gathering request headers..."
+    return request_headers
+end
+
+def get_request_method(raw_request)
+    request_line = raw_request.split("\r\n")[0]
     
+    puts "request line: " + request_line
+    puts "end of request line"
+    
+    request_method = request_line.split(" ")[0].strip
+    return request_method
+end
+
+def get_request_target(raw_request)
+    request_line = raw_request.split("\r\n")[0]
+    
+    puts "request line: " + request_line
+    puts "end of request line"
+
+    request_target = request_line.split(" ")[1] # url path
+    return request_target
+end
+
+def handle_request(request_method, request_target, request_headers, config)
     status = ""
     response_body = ""
     response_headers = {}
@@ -71,13 +90,16 @@ def handle_client_connection(client_socket, config)
         status = "HTTP/1.1 404 Not Found"
     end 
     
-    
     if response_body.length > 0 
-      response_headers["Content-Length"] = response_body.length.to_s
+        response_headers["Content-Length"] = response_body.length.to_s
     end
     puts "response headers length: " + response_headers.length.to_s
-    
-    
+  
+
+    return status, response_body, response_headers
+end
+
+def handle_response(client_socket, status, response_headers, response_body)
     end_of_status_line = "\r\n"
     response_headers_str = ""
     end_of_headers = "\r\n"
@@ -96,7 +118,17 @@ def handle_client_connection(client_socket, config)
     puts "--------------"
     
     client_socket.write(status + end_of_status_line + response_headers_str + end_of_headers + response_body)
-    # client_socket.close_write    
+end
+
+def handle_client_connection(client_socket, config) 
+    raw_request = get_raw_request(client_socket)    
+    request_headers = get_request_headers(raw_request)    
+    request_method = get_request_method(raw_request)
+    request_target = get_request_target(raw_request)
+    
+    status, response_body, response_headers = handle_request(request_method, request_target, request_headers, config)    
+    
+    handle_response(client_socket, status, response_headers, response_body)
 end
 
 def get_program_arguments

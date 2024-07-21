@@ -1,4 +1,5 @@
 require "socket"
+require "zlib"
 
 def get_raw_request(client_socket) 
     raw_request = ""
@@ -62,9 +63,7 @@ def handle_request(request_method, request_target, request_headers, request_body
     status = ""
     response_body = ""
     response_headers = {}
-    if request_headers["Accept-Encoding"] != nil && request_headers["Accept-Encoding"].include?("gzip")
-        response_headers["Content-Encoding"] = "gzip"
-    end  
+
     if request_method == "GET" && request_target == "/" 
         status = "HTTP/1.1 200 OK"
     elsif request_method == "GET" && request_target.start_with?("/echo")
@@ -102,6 +101,12 @@ def handle_request(request_method, request_target, request_headers, request_body
     else
         status = "HTTP/1.1 404 Not Found"
     end 
+
+    if request_headers["Accept-Encoding"] != nil && request_headers["Accept-Encoding"].include?("gzip")
+        response_body = Zlib.gzip(response_body)
+        response_headers["Content-Encoding"] = "gzip"
+    end
+
     
     if response_body.length > 0 
         response_headers["Content-Length"] = response_body.length.to_s

@@ -1,6 +1,6 @@
 require "socket"
 
-def handle_client_connection(client_socket) 
+def handle_client_connection(client_socket, config) 
     raw_request = ""
     # raw_request = client_socket.read
     
@@ -56,6 +56,17 @@ def handle_client_connection(client_socket)
         puts "request target: " + request_target + ", content: " + content
         response_body = content
         response_headers["Content-Type"] = "text/plain"
+    elsif request_target.start_with? "/files"
+        status = "HTTP/1.1 200 OK"
+        filename = request_target["/files/".length, request_target.length]
+        begin
+            file = File.new(config["directory"] + filename, 'r')
+            file_data = file.read
+            response_body = file_data
+            response_headers["Content-Type"] = "application/octet-stream"
+        rescue Errno::ENOENT
+            status = "HTTP/1.1 404 Not Found"
+        end
     else
         status = "HTTP/1.1 404 Not Found"
     end 
@@ -88,6 +99,18 @@ def handle_client_connection(client_socket)
     # client_socket.close_write    
 end
 
+def get_program_arguments
+    config = {}
+    ARGV.each_with_index {|val, index| 
+        if val == "--directory" 
+          config["directory"] = ARGV[index + 1]
+        end
+    }
+    return config
+end
+
+config = get_program_arguments
+
 # You can use print statements as follows for debugging, they'll be visible when running tests.
 print("Logs from your program will appear here!")
 
@@ -104,5 +127,5 @@ loop do
     puts "client connected"
 
     puts "creating a new thread"
-    thr = Thread.new { handle_client_connection(client_socket) }
+    thr = Thread.new { handle_client_connection(client_socket, config) }
 end

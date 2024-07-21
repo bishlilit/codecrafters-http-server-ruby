@@ -62,6 +62,9 @@ def handle_request(request_method, request_target, request_headers, request_body
     status = ""
     response_body = ""
     response_headers = {}
+    if request_headers["Accept-Encoding"] == "gzip"
+        response_headers["Content-Encoding"] = "gzip"
+    end  
     if request_method == "GET" && request_target == "/" 
         status = "HTTP/1.1 200 OK"
     elsif request_method == "GET" && request_target.start_with?("/echo")
